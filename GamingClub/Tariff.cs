@@ -31,13 +31,13 @@ namespace GamingClub
 
     public class NightTariff : Tariff
     {
-        private readonly decimal_nightPackagePrice;
+        private readonly decimal _nightPackagePrice;
         public NightTariff(decimal hourlyRate = 60m, decimal nightPackagePrice = 250m) : base("Ніч", hourlyRate)
         {
             _nightPackagePrice = nightPackagePrice;
         }
 
-        public override decimal CalculateCost(TimeSpan duratoin, User user)
+        public override decimal CalculateCost(TimeSpan duration, User user)
         {
             // Фіксований пакет, якщо грає 3+ години
             decimal baseCost = duration.TotalHours >= 3.0

@@ -173,7 +173,7 @@ namespace GamingClub
             if (session == null)
                 throw new InvalidOperationException($"За ПК #{stationNum} зараз ніхто не грає.");
 
-            Console.Write("Назва позиції (наприклад, Red Bull, Бургер): ");
+            Console.Write("Назва позиції (CocaCola, Red Bull, Бургер, Fanta, Sprite, Сендвіч, Вода): ");
             string item = Console.ReadLine()?.Trim() ?? "";
             decimal price = ReadDecimal("Ціна за одиницю (грн): ");
             int qty = ReadInt("Кількість: ");
