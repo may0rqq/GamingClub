@@ -4,7 +4,13 @@ using System.Text;
 
 namespace GamingClub
 {
-    internal class Entity
-    {
+        public abstract class Entity
+        {
+            public Guid Id { get; } = Guid.NewGuid();
+            public DateTime CreatedAt { get; } = DateTime.Now;
+
+            public abstract string GetInfo();
+        }
     }
-}
+
+
