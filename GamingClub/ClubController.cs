@@ -12,6 +12,9 @@ namespace GamingClub
 
         public void AddStation(GamingStation station) => _stations.Add(station);
 
+        public Session? GetActiveSessionByStation(int stationNumber) =>
+        _activeSessions.FirstOrDefault(s => s.Station.StationNumber == stationNumber);
+
         public Session StartSession(User user, int stationNumber, Tariff tariff, DateTime? startTime = null, TimeSpan? plannedDuration = null)
         {
             var station = _stations.FirstOrDefault(s => s.StationNumber == stationNumber)
