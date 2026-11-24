@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace GamingClub
+namespace CyberArenaSystem
 {
     class Program
     {
@@ -12,7 +12,8 @@ namespace GamingClub
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.InputEncoding = System.Text.Encoding.UTF8;
 
-            var club = new ClubController();
+            var logger = new FileLogger();
+            var club = new ClubController(logger);
             var users = new List<User>();
 
             // Початкова ініціалізація залу (5 ПК)
@@ -22,16 +23,16 @@ namespace GamingClub
             club.AddStation(new GamingStation(4, "RTX 4090 / i9-14900K / 64GB / 360Hz", isVip: true));
             club.AddStation(new GamingStation(5, "RTX 4090 / i9-14900K / 64GB / 360Hz", isVip: true));
 
-            // Додамо кілька тестових гравців для швидкого старту
+            // Тестові гравці
             users.Add(new User("S1mple", 1000m, LoyaltyLevel.Legend));
             users.Add(new User("B1t", 300m, LoyaltyLevel.Pro));
 
-            // Використовуємо віртуальний годинник клубу, щоб зручно перемотувати час на захисті
             DateTime clubTime = DateTime.Now;
 
             while (true)
             {
-                Console.WriteLine($"\n================ КІБЕР-АРЕНА [{clubTime:dd.MM.yyyy HH:mm}] ================");
+                Console.Clear();
+                Console.WriteLine($"================ КІБЕР-АРЕНА [{clubTime:dd.MM.yyyy HH:mm}] ================");
                 Console.WriteLine("1. Моніторинг залу (стан ПК)");
                 Console.WriteLine("2. Зареєструвати нового гравця");
                 Console.WriteLine("3. Поповнити баланс гравця");
@@ -41,9 +42,20 @@ namespace GamingClub
                 Console.WriteLine("7. Перемотати час вперед (+1 год) та перевірити автозавершення");
                 Console.WriteLine("8. Переглянути список гравців та виручку за зміну");
                 Console.WriteLine("0. Вихід");
+                Console.WriteLine("=====================================================================");
                 Console.Write("Оберіть дію: ");
 
                 string choice = Console.ReadLine()?.Trim() ?? "";
+
+                if (choice == "0")
+                {
+                    Console.Clear();
+                    Console.WriteLine("Роботу завершено. Усі події збережено у club_history.log.");
+                    return;
+                }
+
+                // Очищаємо екран перед виконанням обраної дії
+                Console.Clear();
 
                 try
                 {
@@ -54,11 +66,11 @@ namespace GamingClub
                             break;
 
                         case "2":
-                            RegisterUserMenu(users);
+                            RegisterUserMenu(users, logger);
                             break;
 
                         case "3":
-                            TopUpBalanceMenu(users);
+                            TopUpBalanceMenu(users, logger);
                             break;
 
                         case "4":
@@ -66,7 +78,7 @@ namespace GamingClub
                             break;
 
                         case "5":
-                            AddSnackMenu(club);
+                            AddSnackMenu(club, logger);
                             break;
 
                         case "6":
@@ -75,36 +87,52 @@ namespace GamingClub
 
                         case "7":
                             clubTime = clubTime.AddHours(1);
-                            Console.WriteLine($"\n[ЧАС] Минула 1 година. Поточний час клубу: {clubTime:HH:mm}");
+                            Console.WriteLine($"[ЧАС] Минула 1 година. Поточний час клубу: {clubTime:HH:mm}\n");
                             club.CheckAutoCompletions(clubTime);
                             break;
 
                         case "8":
-                            Console.WriteLine("\n--- ЗАРЕЄСТРОВАНІ ГРАВЦІ ---");
+                            Console.WriteLine("--- ЗАРЕЄСТРОВАНІ ГРАВЦІ ---");
                             foreach (var u in users)
                                 Console.WriteLine(u.GetInfo());
                             Console.WriteLine($"\nЗагальна виручка за зміну: {club.GetShiftRevenue():F2} грн");
                             break;
-
-                        case "0":
-                            Console.WriteLine("Роботу завершено.");
-                            return;
 
                         default:
                             Console.WriteLine("Невідома команда. Введіть число від 0 до 8.");
                             break;
                     }
                 }
+                catch (StationOccupiedException ex)
+                {
+                    logger.LogError(ex.Message);
+                    Console.WriteLine($"\n[ЗАЙНЯТО] {ex.Message} Оберіть інший вільний ПК.");
+                }
+                catch (InsufficientFundsException ex)
+                {
+                    logger.LogError(ex.Message);
+                    Console.WriteLine($"\n[НЕМАЄ КОШТІВ] {ex.Message} Поповніть баланс у пункті 3.");
+                }
+                catch (OrderLimitExceededException ex)
+                {
+                    logger.LogError(ex.Message);
+                    Console.WriteLine($"\n[ЛІМІТ БАРУ] {ex.Message}");
+                }
                 catch (Exception ex)
                 {
-                    // Перехоплюємо всі винятки валідації (зайнятий ПК, VIP-тариф на звичайному ПК тощо)
+                    logger.LogError(ex.Message);
                     Console.WriteLine($"\n[ПОМИЛКА] {ex.Message}");
                 }
+
+                // Пауза, щоб встигнути прочитати результат перед очищенням екрана
+                Console.WriteLine("\nНатисніть будь-яку клавішу, щоб повернутися в головне меню...");
+                Console.ReadKey(true);
             }
         }
 
-        static void RegisterUserMenu(List<User> users)
+        static void RegisterUserMenu(List<User> users, IClubLogger logger)
         {
+            Console.WriteLine("--- РЕЄСТРАЦІЯ НОВОГО ГРАВЦЯ ---");
             Console.Write("Введіть нікнейм гравця: ");
             string nick = Console.ReadLine()?.Trim() ?? "";
 
@@ -124,28 +152,32 @@ namespace GamingClub
 
             var newUser = new User(nick, deposit, loyalty);
             users.Add(newUser);
-            Console.WriteLine($"[ОК] Гравця зареєстровано: {newUser.GetInfo()}");
+            logger.LogInfo($"Зареєстровано гравця: {newUser.GetInfo()}");
+            Console.WriteLine($"\n[ОК] Гравця зареєстровано: {newUser.GetInfo()}");
         }
 
-        static void TopUpBalanceMenu(List<User> users)
+        static void TopUpBalanceMenu(List<User> users, IClubLogger logger)
         {
+            Console.WriteLine("--- ПОПОВНЕННЯ БАЛАНСУ ---");
             var user = SelectUser(users);
             if (user == null) return;
 
             decimal amount = ReadDecimal("Сума поповнення (грн): ");
             user.TopUpBalance(amount);
-            Console.WriteLine($"[ОК] Баланс оновлено: {user.GetInfo()}");
+            logger.LogInfo($"Поповнення балансу {user.Nickname} на {amount:F2} грн.");
+            Console.WriteLine($"\n[ОК] Баланс оновлено: {user.GetInfo()}");
         }
 
         static void StartSessionMenu(ClubController club, List<User> users, DateTime currentTime)
         {
+            Console.WriteLine("--- СТАРТ ІГРОВОЇ СЕСІЇ ---");
             var user = SelectUser(users);
             if (user == null) return;
 
             club.MonitorHall();
             int stationNum = ReadInt("Введіть номер вільного ПК: ");
 
-            Console.WriteLine("Оберіть тариф:");
+            Console.WriteLine("\nОберіть тариф:");
             Console.WriteLine("1. День (80 грн/год)");
             Console.WriteLine("2. Ніч (60 грн/год або фікс. пакет 250 грн від 3 год)");
             Console.WriteLine("3. VIP (140 грн/год + бонусні хвилини)");
@@ -158,32 +190,39 @@ namespace GamingClub
                 _ => new DayTariff()
             };
 
-            Console.Write("Вкажіть заброньований час у годинах (або 0 для безлімітної гри по балансу): ");
+            Console.Write("Заброньований час у годинах (0 — безліміт по балансу): ");
             double hours = (double)ReadDecimal("");
             TimeSpan? planned = hours > 0 ? TimeSpan.FromHours(hours) : null;
 
+            Console.WriteLine();
             club.StartSession(user, stationNum, tariff, currentTime, planned);
         }
 
-        static void AddSnackMenu(ClubController club)
+        static void AddSnackMenu(ClubController club, IClubLogger logger)
         {
+            Console.WriteLine("--- ЗАМОВЛЕННЯ З БАРУ ---");
+            club.MonitorHall();
             int stationNum = ReadInt("Введіть номер ПК, куди принести замовлення: ");
             var session = club.GetActiveSessionByStation(stationNum);
 
             if (session == null)
                 throw new InvalidOperationException($"За ПК #{stationNum} зараз ніхто не грає.");
 
-            Console.Write("Назва позиції (CocaCola, Red Bull, Бургер, Fanta, Sprite, Сендвіч, Вода): ");
+            Console.Write("Назва позиції (наприклад, Red Bull, Бургер): ");
             string item = Console.ReadLine()?.Trim() ?? "";
             decimal price = ReadDecimal("Ціна за одиницю (грн): ");
-            int qty = ReadInt("Кількість: ");
+            int qty = ReadInt("Кількість (макс. 20 шт.): ");
 
-            session.AddOrder(new SnackOrder(item, price, qty));
-            Console.WriteLine($"[ОК] Замовлення додано до сесії гравця {session.Player.Nickname}.");
+            var order = new SnackOrder(item, price, qty);
+            session.AddOrder(order);
+            logger.LogInfo($"Замовлення бару для {session.Player.Nickname} (ПК #{stationNum}): {order.GetInfo()}");
+            Console.WriteLine($"\n[ОК] Замовлення додано до сесії гравця {session.Player.Nickname}.");
         }
 
         static void EndSessionMenu(ClubController club, DateTime currentTime)
         {
+            Console.WriteLine("--- ЗАВЕРШЕННЯ СЕСІЇ ---");
+            club.MonitorHall();
             int stationNum = ReadInt("Введіть номер ПК для завершення сесії: ");
             var session = club.GetActiveSessionByStation(stationNum);
 

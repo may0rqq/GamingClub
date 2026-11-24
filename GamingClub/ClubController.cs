@@ -1,19 +1,30 @@
-﻿using System;
+﻿using GamingClub;
+using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
-namespace GamingClub
+namespace CyberArenaSystem
 {
     public class ClubController
     {
         private readonly List<GamingStation> _stations = new();
         private readonly List<Session> _activeSessions = new();
         private readonly List<Receipt> _receipts = new();
+        private readonly IClubLogger _logger;
 
-        public void AddStation(GamingStation station) => _stations.Add(station);
+        public ClubController(IClubLogger? logger = null)
+        {
+            _logger = logger ?? new FileLogger();
+        }
+
+        public void AddStation(GamingStation station)
+        {
+            _stations.Add(station);
+            _logger.LogInfo($"Додано станцію: {station.GetInfo()}");
+        }
 
         public Session? GetActiveSessionByStation(int stationNumber) =>
-        _activeSessions.FirstOrDefault(s => s.Station.StationNumber == stationNumber);
+            _activeSessions.FirstOrDefault(s => s.Station.StationNumber == stationNumber);
 
         public Session StartSession(User user, int stationNumber, Tariff tariff, DateTime? startTime = null, TimeSpan? plannedDuration = null)
         {
@@ -22,7 +33,11 @@ namespace GamingClub
 
             var session = new Session(user, station, tariff, startTime, plannedDuration);
             _activeSessions.Add(session);
-            Console.WriteLine($"[СТАРТ] {session.GetInfo()}");
+
+            string msg = $"Старт сесії: гравець {user.Nickname} зайняв ПК #{stationNumber} (тариф «{tariff.Name}»).";
+            Console.WriteLine($"[СТАРТ] {msg}");
+            _logger.LogInfo(msg);
+
             return session;
         }
 
@@ -34,6 +49,8 @@ namespace GamingClub
             var receipt = session.Close(endTime);
             _activeSessions.Remove(session);
             _receipts.Add(receipt);
+
+            _logger.LogInfo($"Завершено сесію гравця {session.Player.Nickname} (ПК #{session.Station.StationNumber}). Чек: {receipt.GrandTotal:F2} грн.");
             return receipt;
         }
 
@@ -48,7 +65,10 @@ namespace GamingClub
 
                 if (timeIsUp || noMoney)
                 {
-                    Console.WriteLine($"[АВТО-СТОП] Завершення сесії {session.Player.Nickname} (ПК #{session.Station.StationNumber}).");
+                    string reason = timeIsUp ? "закінчився заброньований час" : "вичерпано баланс";
+                    string msg = $"Автозавершення сесії {session.Player.Nickname} на ПК #{session.Station.StationNumber} ({reason}).";
+                    Console.WriteLine($"[АВТО-СТОП] {msg}");
+                    _logger.LogWarning(msg);
                     toClose.Add(session);
                 }
             }

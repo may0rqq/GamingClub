@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="GamingClub/GamingClub.csproj" />
+  <Project Path="GamingClubTests/GamingClubTests.csproj" Id="76b429b9-d51e-499a-a4ad-3b9f0764f69a" />
 </Solution>

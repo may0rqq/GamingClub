@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
-namespace GamingClub
+namespace CyberArenaSystem
 {
-    public class Session : Entity
+    public class Session : Entity, IBillable
     {
         private readonly List<SnackOrder> _orders = new();
 
@@ -27,6 +27,10 @@ namespace GamingClub
             Station = station ?? throw new ArgumentNullException(nameof(station));
             SelectedTariff = tariff ?? throw new ArgumentNullException(nameof(tariff));
 
+            decimal minRequired = SelectedTariff.CalculateCost(TimeSpan.FromMinutes(15), Player);
+            if (Player.Balance < minRequired && Player.BonusTime < TimeSpan.FromMinutes(15))
+                throw new InsufficientFundsException(minRequired, Player.Balance);
+
             Station.Occupy();
             StartTime = startTime ?? DateTime.Now;
             PlannedDuration = plannedDuration;
@@ -35,6 +39,11 @@ namespace GamingClub
         public void AddOrder(SnackOrder order)
         {
             if (!IsActive) throw new InvalidOperationException("Сесія вже завершена.");
+
+            decimal currentTotal = CalculateTimeCost() + CalculateBarCost() + order.CalculateTotal();
+            if (Player.Balance < currentTotal)
+                throw new InsufficientFundsException(currentTotal, Player.Balance);
+
             _orders.Add(order);
         }
 
@@ -57,7 +66,7 @@ namespace GamingClub
             return SelectedTariff.CalculateCost(payable, Player);
         }
 
-        public decimal CalculateBarCost() => _orders.Sum(o => o.GetTotalCost());
+        public decimal CalculateBarCost() => _orders.Sum(o => o.CalculateTotal());
 
         public Receipt Close(DateTime? endTime = null)
         {
@@ -66,19 +75,29 @@ namespace GamingClub
             EndTime = endTime ?? DateTime.Now;
             Station.Release();
 
-            // Бонус за гру на VIP-тарифі (10 хв за кожну годину)
-            if (SelectedTariff is VipTariff)
-                Player.AddBonusHours((GetDuration().TotalHours * 10.0) / 60.0);
+            if (SelectedTariff is IBonusProvider bonusProvider)
+            {
+                TimeSpan earned = bonusProvider.CalculateBonusEarned(GetDuration());
+                Player.AddBonusHours(earned.TotalHours);
+            }
 
             var receipt = new Receipt(this);
 
             if (!Player.TryCharge(receipt.GrandTotal))
             {
-                Console.WriteLine($"[УВАГА] Не вистачає коштів на балансі {Player.Nickname}. Доплата: {receipt.GrandTotal - Player.Balance:F2} грн");
+                Console.WriteLine($"[УВАГА] Не вистачає коштів на балансі {Player.Nickname}. Доплата готівкою: {receipt.GrandTotal - Player.Balance:F2} грн");
                 Player.TryCharge(Player.Balance);
             }
 
             return receipt;
+        }
+
+        public decimal CalculateTotal() => CalculateTimeCost();
+
+        public string GetDescription()
+        {
+            var dur = GetDuration();
+            return $"Гра ({SelectedTariff.Name}, ПК #{Station.StationNumber}): {dur.Hours} год {dur.Minutes} хв";
         }
 
         public override string GetInfo() =>
