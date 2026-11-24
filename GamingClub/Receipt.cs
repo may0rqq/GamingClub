@@ -8,6 +8,7 @@ namespace GamingClub
     public class Receipt : Entity
     {
         public Session ClosedSession { get; }
+        public List<IBillable> Billables { get; } = new();
         public decimal TimeCost { get; }
         public decimal BarCost { get; }
         public decimal GrandTotal => TimeCost + BarCost;
@@ -18,6 +19,8 @@ namespace GamingClub
                 throw new InvalidOperationException("Неможливо сформувати чек для активної сесії.");
 
             ClosedSession = session;
+            BillableItems.Add(session);
+            BillableItems.AddRange(session.Orders);
             TimeCost = session.CalculateTimeCost();
             BarCost = session.CalculateBarCost();
         }
