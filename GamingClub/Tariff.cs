@@ -48,7 +48,7 @@ namespace GamingClub
         }
     }
 
-    public class VipTariff:Tariff
+    public class VipTariff:Tariff,IBonusProvider
     {
         public VipTariff(decimal hourlyRate = 140m):base("VIP",hourlyRate) { }
         public override decimal CalculateCost(TimeSpan duration, User user)
@@ -56,6 +56,11 @@ namespace GamingClub
             // Для VIP знижка лояльності діє наполовину
             decimal discount = 1.0m - ((1.0m - user.GetDiscountMultiplier()) / 2m);
             return Math.Round((decimal)duration.TotalHours * HourlyRate * discount, 2);
+        }
+        public TimeSpan CalculateBonusEarned(TimeSpan sessionDuration)
+        {
+            double bonusMinutes = sessionDuration.TotalHours * 10.0;
+            return TimeSpan.FromMinutes(bonusMinutes);
         }
     }
 }
