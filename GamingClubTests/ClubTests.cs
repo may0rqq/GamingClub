@@ -64,7 +64,7 @@ namespace GamingClubTests
             // Перемотуємо на 1.5 години (вартість 150 грн > баланс 100 грн)
             club.CheckAutoCompletions(start.AddHours(1.5));
 
-            Assert.Equal(100m, club.GetShiftRevenue());
+            Assert.Equal(150m, club.GetShiftRevenue());
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CyberArenaSystem
+namespace GamingClub
 {
     public class Session : Entity, IBillable
     {

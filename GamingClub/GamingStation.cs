@@ -26,7 +26,8 @@ namespace GamingClub
         public void Occupy()
         {
             if (Status == StationStatus.Occupied)
-                throw new InvalidOperationException($"ПК #{StationNumber} вже зайнятий.");
+                throw new StationOccupiedException(StationNumber);
+
             Status = StationStatus.Occupied;
         }
         public void Release() => Status = StationStatus.Free;

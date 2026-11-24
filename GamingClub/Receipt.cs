@@ -8,7 +8,7 @@ namespace GamingClub
     public class Receipt : Entity
     {
         public Session ClosedSession { get; }
-        public List<IBillable> Billables { get; } = new();
+        public List<IBillable> BillableItems { get; } = new();
         public decimal TimeCost { get; }
         public decimal BarCost { get; }
         public decimal GrandTotal => TimeCost + BarCost;
